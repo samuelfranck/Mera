@@ -1,18 +1,15 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Mera - Teste ASR</title>
+    <title>Mera - Teste de Microfone</title>
 
     <style>
-
         body {
             font-family: Arial, sans-serif;
             background: #f5f5f5;
@@ -29,22 +26,22 @@
         }
 
         button {
-            font-size: 22px;
-            padding: 15px 30px;
+            font-size: 20px;
+            padding: 15px 25px;
+            margin: 10px;
             border-radius: 10px;
         }
 
-        #transcricao {
+        #status {
+            font-size: 20px;
+            margin: 20px;
+        }
+
+        audio {
+            width: 100%;
             margin-top: 20px;
-            padding: 20px;
-            background: #eeeeee;
-            border-radius: 10px;
-            min-height: 50px;
-            font-size: 22px;
         }
-
     </style>
-
 </head>
 
 
@@ -54,110 +51,167 @@
 
     <h1>🎤 Mera</h1>
 
-    <p id="status">
-        Pressione o botão para falar.
-    </p>
+    <h2>Teste do microfone</h2>
 
-    <button id="falar">
-        🎤 Falar
+    <div id="status">
+        Pressione "Iniciar gravação".
+    </div>
+
+    <button id="iniciar">
+        🎤 Iniciar gravação
     </button>
 
-    <h3>Transcrição</h3>
+    <button id="parar" disabled>
+        ⏹ Parar
+    </button>
 
-    <div id="transcricao">
-        ...
-    </div>
+    <br>
+
+    <audio id="player"
+           controls>
+    </audio>
 
 </div>
 
 
 <script>
 
-const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
+let stream;
+let recorder;
+let partes = [];
 
 
 const status =
     document.getElementById("status");
 
-const transcricao =
-    document.getElementById("transcricao");
+const iniciar =
+    document.getElementById("iniciar");
 
-const botao =
-    document.getElementById("falar");
+const parar =
+    document.getElementById("parar");
 
-
-if (!SpeechRecognition) {
-
-    status.innerText =
-        "❌ SpeechRecognition não disponível.";
-
-    botao.disabled = true;
-
-}
-
-else {
-
-    const recognition =
-        new SpeechRecognition();
+const player =
+    document.getElementById("player");
 
 
-    recognition.lang = "pt-BR";
+// ======================================================
+// INICIAR GRAVAÇÃO
+// ======================================================
 
-    recognition.continuous = false;
+iniciar.onclick = async () => {
 
-    recognition.interimResults = false;
-
-
-    recognition.onstart = () => {
+    try {
 
         status.innerText =
-            "🎤 Ouvindo...";
-
-        transcricao.innerText = "";
-
-    };
+            "Solicitando acesso ao microfone...";
 
 
-    recognition.onresult = (event) => {
+        // Solicita diretamente o microfone
+        stream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
 
-        const texto =
-            event.results[0][0].transcript;
-
-        transcricao.innerText =
-            texto;
 
         status.innerText =
-            "✅ Reconhecimento concluído.";
-
-    };
+            "🎤 Gravando... fale alguma coisa.";
 
 
-    recognition.onerror = (event) => {
+        partes = [];
+
+
+        recorder =
+            new MediaRecorder(stream);
+
+
+        recorder.ondataavailable = (event) => {
+
+            if (event.data.size > 0) {
+                partes.push(event.data);
+            }
+
+        };
+
+
+        recorder.onstop = () => {
+
+            const audioBlob =
+                new Blob(
+                    partes,
+                    {
+                        type: recorder.mimeType
+                    }
+                );
+
+
+            const audioURL =
+                URL.createObjectURL(audioBlob);
+
+
+            player.src =
+                audioURL;
+
+
+            status.innerText =
+                "✅ Gravação concluída. Reproduza o áudio abaixo.";
+
+        };
+
+
+        recorder.start();
+
+
+        iniciar.disabled = true;
+
+        parar.disabled = false;
+
+    }
+
+    catch (erro) {
+
+        console.error(erro);
 
         status.innerText =
-            "❌ Erro: " + event.error;
+            "❌ Erro: " +
+            erro.name +
+            " - " +
+            erro.message;
 
-    };
+    }
 
-
-    recognition.onend = () => {
-
-        botao.disabled = false;
-
-    };
+};
 
 
-    botao.onclick = () => {
+// ======================================================
+// PARAR GRAVAÇÃO
+// ======================================================
 
-        botao.disabled = true;
+parar.onclick = () => {
 
-        recognition.start();
+    if (
+        recorder &&
+        recorder.state !== "inactive"
+    ) {
 
-    };
+        recorder.stop();
 
-}
+    }
+
+
+    if (stream) {
+
+        stream
+            .getTracks()
+            .forEach(track => track.stop());
+
+    }
+
+
+    iniciar.disabled = false;
+
+    parar.disabled = true;
+
+};
 
 </script>
 
