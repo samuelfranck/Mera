@@ -2,60 +2,87 @@
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
 
-    <title>Mera - Teste ASR</title>
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
-    <style>
+<title>Mera - Baseline 2</title>
 
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 30px;
-        }
+<style>
 
-        button {
-            font-size: 22px;
-            padding: 15px 30px;
-            margin: 20px;
-        }
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 30px;
+    background: #f5f5f5;
+}
 
-        #transcricao {
-            font-size: 24px;
-            padding: 20px;
-            margin-top: 20px;
-            background: #eeeeee;
-            min-height: 50px;
-        }
+.app {
+    max-width: 600px;
+    margin: auto;
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+}
 
-    </style>
+button {
+    font-size: 22px;
+    padding: 15px 30px;
+    margin: 20px;
+    border-radius: 10px;
+}
+
+#status {
+    font-size: 22px;
+    margin: 20px;
+}
+
+#transcricao {
+    font-size: 22px;
+    padding: 20px;
+    margin-top: 20px;
+    background: #eeeeee;
+    min-height: 50px;
+    border-radius: 10px;
+}
+
+</style>
+
 </head>
+
 
 <body>
 
-    <h1>🎤 Mera</h1>
+<div class="app">
 
-    <h2>Teste ASR</h2>
+<h1>🎤 Mera</h1>
 
-    <p id="status">
-        Pressione Falar.
-    </p>
+<h2>Baseline 2</h2>
 
-    <button id="falar">
-        🎤 Falar
-    </button>
+<p id="status">
+    Pressione iniciar.
+</p>
 
-    <h3>Transcrição</h3>
+<button id="iniciar">
+    ▶️ Iniciar Mera
+</button>
 
-    <div id="transcricao">
-        ...
-    </div>
+<h3>Última frase reconhecida</h3>
+
+<div id="transcricao">
+    ...
+</div>
+
+</div>
 
 
 <script>
+
+// ======================================================
+// CONFIGURAÇÃO DO SPEECH RECOGNITION
+// ======================================================
 
 const SpeechRecognition =
     window.SpeechRecognition ||
@@ -69,79 +96,350 @@ const transcricao =
     document.getElementById("transcricao");
 
 const botao =
-    document.getElementById("falar");
+    document.getElementById("iniciar");
 
 
-if (!SpeechRecognition) {
+let recognition;
 
-    status.innerText =
-        "❌ SpeechRecognition não disponível.";
+let aplicativoAtivo = false;
 
-    botao.disabled = true;
+let falando = false;
+
+let estado = "AGUARDANDO_ATIVACAO";
+
+
+// ======================================================
+// NORMALIZAÇÃO DO TEXTO
+// ======================================================
+
+function normalizar(texto) {
+
+    return texto
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[.,!?]/g, "")
+        .trim();
 
 }
 
-else {
 
-    const recognition =
+// ======================================================
+// TTS
+// ======================================================
+
+function falar(texto) {
+
+    falando = true;
+
+    status.innerText =
+        "🔊 Mera falando...";
+
+
+    // Para o reconhecimento para evitar
+    // que o Mera escute a própria voz.
+
+    try {
+
+        recognition.stop();
+
+    } catch (erro) {
+
+        console.log(erro);
+
+    }
+
+
+    const fala =
+        new SpeechSynthesisUtterance(texto);
+
+
+    fala.lang = "pt-BR";
+
+    fala.rate = 1.0;
+
+
+    fala.onend = () => {
+
+        falando = false;
+
+        status.innerText =
+            "🎤 Aguardando canal...";
+
+
+        // Pequena pausa antes de voltar a ouvir
+
+        setTimeout(() => {
+
+            iniciarReconhecimento();
+
+        }, 500);
+
+    };
+
+
+    speechSynthesis.cancel();
+
+    speechSynthesis.speak(fala);
+
+}
+
+
+// ======================================================
+// PROCESSAR TEXTO RECONHECIDO
+// ======================================================
+
+function processar(textoOriginal) {
+
+    const texto =
+        normalizar(textoOriginal);
+
+
+    transcricao.innerText =
+        textoOriginal;
+
+
+    console.log(
+        "Reconhecido:",
+        texto
+    );
+
+
+    // ==================================================
+    // ESTADO 1
+    // Esperando "Ok Mera"
+    // ==================================================
+
+    if (estado === "AGUARDANDO_ATIVACAO") {
+
+        if (
+            texto.includes("ok mera") ||
+            texto.includes("okay mera")
+        ) {
+
+            estado =
+                "AGUARDANDO_CANAL";
+
+
+            status.innerText =
+                "✅ Mera ativada";
+
+
+            falar(
+                "Ok, qual canal você quer assistir?"
+            );
+
+        }
+
+        return;
+
+    }
+
+
+    // ==================================================
+    // ESTADO 2
+    // Esperando resposta do usuário
+    // ==================================================
+
+    if (estado === "AGUARDANDO_CANAL") {
+
+        status.innerText =
+            "✅ Canal reconhecido: " +
+            textoOriginal;
+
+
+        // Neste baseline ainda não fazemos nada
+        // com o nome do canal.
+
+        // Apenas mostramos o resultado.
+
+        estado =
+            "AGUARDANDO_ATIVACAO";
+
+
+        setTimeout(() => {
+
+            status.innerText =
+                '🎤 Aguardando "Ok Mera"...';
+
+        }, 2000);
+
+    }
+
+}
+
+
+// ======================================================
+// CRIAR RECONHECIMENTO
+// ======================================================
+
+function criarReconhecimento() {
+
+    recognition =
         new SpeechRecognition();
 
 
-    recognition.lang = "pt-BR";
+    recognition.lang =
+        "pt-BR";
 
-    recognition.continuous = false;
 
-    recognition.interimResults = false;
+    recognition.continuous =
+        true;
+
+
+    recognition.interimResults =
+        false;
 
 
     recognition.onstart = () => {
 
-        status.innerText =
-            "🎤 Ouvindo...";
-
-        transcricao.innerText = "";
-
-        botao.disabled = true;
+        console.log(
+            "Reconhecimento iniciado"
+        );
 
     };
 
 
     recognition.onresult = (event) => {
 
+        const resultado =
+            event.results[
+                event.results.length - 1
+            ];
+
+
+        if (!resultado.isFinal) {
+            return;
+        }
+
+
         const texto =
-            event.results[0][0].transcript;
+            resultado[0].transcript;
 
-        transcricao.innerText =
-            texto;
 
-        status.innerText =
-            "✅ Reconhecimento concluído.";
+        if (!falando) {
+
+            processar(texto);
+
+        }
 
     };
 
 
     recognition.onerror = (event) => {
 
+        console.log(
+            "Erro ASR:",
+            event.error
+        );
+
+
         status.innerText =
-            "❌ Erro: " + event.error;
+            "⚠️ ASR: " +
+            event.error;
 
     };
 
 
     recognition.onend = () => {
 
-        botao.disabled = false;
+        console.log(
+            "Reconhecimento encerrado"
+        );
 
-    };
 
+        // Chrome pode encerrar o reconhecimento.
+        // Reiniciamos automaticamente.
 
-    botao.onclick = () => {
+        if (
+            aplicativoAtivo &&
+            !falando
+        ) {
 
-        recognition.start();
+            setTimeout(() => {
+
+                iniciarReconhecimento();
+
+            }, 500);
+
+        }
 
     };
 
 }
+
+
+// ======================================================
+// INICIAR RECONHECIMENTO
+// ======================================================
+
+function iniciarReconhecimento() {
+
+    if (
+        !aplicativoAtivo ||
+        falando
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        recognition.start();
+
+    }
+
+    catch (erro) {
+
+        console.log(
+            "Reconhecimento já iniciado."
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// BOTÃO INICIAR
+// ======================================================
+
+botao.onclick = () => {
+
+    if (!SpeechRecognition) {
+
+        status.innerText =
+            "❌ SpeechRecognition não disponível.";
+
+        return;
+
+    }
+
+
+    criarReconhecimento();
+
+
+    aplicativoAtivo =
+        true;
+
+
+    estado =
+        "AGUARDANDO_ATIVACAO";
+
+
+    botao.style.display =
+        "none";
+
+
+    status.innerText =
+        '🎤 Aguardando "Ok Mera"...';
+
+
+    iniciarReconhecimento();
+
+};
 
 </script>
 
