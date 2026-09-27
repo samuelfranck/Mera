@@ -8,7 +8,7 @@
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0">
 
-<title>Mera - Baseline 3</title>
+<title>Mera - Baseline 3.1</title>
 
 <style>
 
@@ -48,48 +48,31 @@ button {
     border-radius: 10px;
 }
 
-#estado {
-    margin-top: 20px;
-    font-size: 16px;
-    color: #555;
-}
-
 </style>
 
 </head>
-
 
 <body>
 
 <div class="app">
 
-<h1>📺 Mera</h1>
+    <h1>📺 Mera</h1>
 
-<h2>Baseline 3</h2>
+    <h2>Baseline 3.1</h2>
 
-<p id="status">
-    Pressione iniciar.
-</p>
+    <p id="status">
+        Pressione iniciar.
+    </p>
 
-<button id="iniciar">
-    ▶️ Iniciar Mera
-</button>
-<button onclick="window.open(
-'https://app-windows.pluto.tv/live-tv/62e010e6cd663f0007e57dc8/details',
-'_blank'
-)">
-    📺 Testar TV Cultura
-</button>
+    <button id="iniciar">
+        ▶️ Iniciar Mera
+    </button>
 
-<h3>Última frase reconhecida</h3>
+    <h3>Última frase reconhecida</h3>
 
-<div id="transcricao">
-    ...
-</div>
-
-<div id="estado">
-    Sistema parado
-</div>
+    <div id="transcricao">
+        ...
+    </div>
 
 </div>
 
@@ -131,7 +114,7 @@ const CANAIS = {
 
 
 // ======================================================
-// SPEECH RECOGNITION
+// ELEMENTOS
 // ======================================================
 
 const SpeechRecognition =
@@ -144,9 +127,6 @@ const status =
 
 const transcricao =
     document.getElementById("transcricao");
-
-const indicadorEstado =
-    document.getElementById("estado");
 
 const botao =
     document.getElementById("iniciar");
@@ -161,11 +141,9 @@ let falando = false;
 let estado =
     "AGUARDANDO_ATIVACAO";
 
-let janelaPluto = null;
-
 
 // ======================================================
-// NORMALIZAÇÃO
+// NORMALIZAR
 // ======================================================
 
 function normalizar(texto) {
@@ -188,9 +166,6 @@ function falar(texto, callback = null) {
 
     falando = true;
 
-    status.innerText =
-        "🔊 Mera falando...";
-
 
     try {
 
@@ -212,6 +187,7 @@ function falar(texto, callback = null) {
     fala.lang =
         "pt-BR";
 
+
     fala.rate =
         1.0;
 
@@ -227,6 +203,9 @@ function falar(texto, callback = null) {
 
         }
 
+
+        // Só reinicia o ASR se ainda estivermos
+        // na página do Mera.
 
         setTimeout(() => {
 
@@ -245,130 +224,23 @@ function falar(texto, callback = null) {
 
 
 // ======================================================
-// ABRIR CANAL
-// ======================================================
-
-function abrirCanal(canal) {
-
-    const dados =
-        CANAIS[canal];
-
-
-    indicadorEstado.innerText =
-        "Canal atual: " + canal;
-
-
-    falar(
-        "Ok. Abrindo " + canal + ".",
-
-        () => {
-
-            if (
-                janelaPluto &&
-                !janelaPluto.closed
-            ) {
-
-                janelaPluto.location.href =
-                    dados.url;
-
-            }
-
-            else {
-
-                // Tentativa alternativa caso
-                // a janela tenha sido fechada.
-
-                janelaPluto =
-                    window.open(
-                        dados.url,
-                        "MERA_PLUTO"
-                    );
-
-            }
-
-
-            estado =
-                "ASSISTINDO";
-
-
-            status.innerText =
-                '📺 Assistindo. Diga "sair" para voltar.';
-
-        }
-
-    );
-
-}
-
-
-// ======================================================
-// SAIR
-// ======================================================
-
-function sair() {
-
-    if (
-        janelaPluto &&
-        !janelaPluto.closed
-    ) {
-
-        janelaPluto.close();
-
-    }
-
-
-    janelaPluto = null;
-
-
-    estado =
-        "AGUARDANDO_ATIVACAO";
-
-
-    indicadorEstado.innerText =
-        "Nenhum canal aberto";
-
-
-    falar(
-
-        "Ok. Voltando.",
-
-        () => {
-
-            status.innerText =
-                '🎤 Aguardando "Ok Mera"...';
-
-        }
-
-    );
-
-}
-
-
-// ======================================================
 // IDENTIFICAR CANAL
 // ======================================================
 
 function identificarCanal(texto) {
 
-    for (
-        const nomeCanal
-        in CANAIS
-    ) {
-
-        const nomes =
-            CANAIS[nomeCanal].nomes;
-
+    for (const canal in CANAIS) {
 
         for (
             const nome
-            of nomes
+            of CANAIS[canal].nomes
         ) {
 
             if (
                 texto.includes(nome)
             ) {
 
-                return nomeCanal;
+                return canal;
 
             }
 
@@ -383,7 +255,52 @@ function identificarCanal(texto) {
 
 
 // ======================================================
-// PROCESSAMENTO
+// ABRIR CANAL
+// ======================================================
+
+function abrirCanal(canal) {
+
+    const dados =
+        CANAIS[canal];
+
+
+    status.innerText =
+        "📺 Abrindo " + canal + "...";
+
+
+    /*
+    TESTE PRINCIPAL DO BASELINE 3.1
+
+    Não usamos window.open().
+    Não usamos outra aba.
+
+    A própria página do Mera
+    navega para a Pluto.
+    */
+
+
+    falar(
+
+        "Ok. Abrindo " + canal + ".",
+
+        () => {
+
+            aplicativoAtivo =
+                false;
+
+
+            window.location.href =
+                dados.url;
+
+        }
+
+    );
+
+}
+
+
+// ======================================================
+// PROCESSAR TEXTO
 // ======================================================
 
 function processar(textoOriginal) {
@@ -403,23 +320,7 @@ function processar(textoOriginal) {
 
 
     // ==================================================
-    // COMANDO GLOBAL: SAIR
-    // ==================================================
-
-    if (
-        texto === "sair" ||
-        texto.includes("sair")
-    ) {
-
-        sair();
-
-        return;
-
-    }
-
-
-    // ==================================================
-    // AGUARDANDO ATIVAÇÃO
+    // AGUARDANDO OK MERA
     // ==================================================
 
     if (
@@ -436,8 +337,8 @@ function processar(textoOriginal) {
                 "AGUARDANDO_CANAL";
 
 
-            indicadorEstado.innerText =
-                "Mera ativada";
+            status.innerText =
+                "🔊 Mera ativada";
 
 
             falar(
@@ -454,6 +355,7 @@ function processar(textoOriginal) {
             );
 
         }
+
 
         return;
 
@@ -501,27 +403,11 @@ function processar(textoOriginal) {
 
     }
 
-
-    // ==================================================
-    // ASSISTINDO
-    // ==================================================
-
-    if (
-        estado === "ASSISTINDO"
-    ) {
-
-        // Por enquanto só "sair"
-        // possui função nesse estado.
-
-        return;
-
-    }
-
 }
 
 
 // ======================================================
-// CRIAR RECONHECIMENTO
+// CRIAR ASR
 // ======================================================
 
 function criarReconhecimento() {
@@ -585,11 +471,6 @@ function criarReconhecimento() {
     recognition.onend =
         () => {
 
-            console.log(
-                "ASR encerrado"
-            );
-
-
             if (
                 aplicativoAtivo &&
                 !falando
@@ -609,7 +490,7 @@ function criarReconhecimento() {
 
 
 // ======================================================
-// INICIAR RECONHECIMENTO
+// INICIAR ASR
 // ======================================================
 
 function iniciarReconhecimento() {
@@ -633,7 +514,7 @@ function iniciarReconhecimento() {
     catch (erro) {
 
         console.log(
-            "ASR já iniciado."
+            "ASR já iniciado"
         );
 
     }
@@ -660,49 +541,6 @@ botao.onclick = () => {
     criarReconhecimento();
 
 
-    /*
-    A janela da Pluto é criada AGORA,
-    durante o toque do usuário.
-
-    Isso é importante porque navegadores
-    normalmente bloqueiam window.open()
-    iniciado apenas por voz/JavaScript.
-    */
-
-    janelaPluto =
-        window.open(
-            "about:blank",
-            "MERA_PLUTO"
-        );
-
-
-    if (janelaPluto) {
-
-        janelaPluto.document.write(`
-
-            <html>
-
-            <body style="
-                font-family:Arial;
-                text-align:center;
-                padding-top:100px;
-            ">
-
-            <h1>Mera</h1>
-
-            <p>
-                Aguardando escolha do canal...
-            </p>
-
-            </body>
-
-            </html>
-
-        `);
-
-    }
-
-
     aplicativoAtivo =
         true;
 
@@ -717,10 +555,6 @@ botao.onclick = () => {
 
     status.innerText =
         '🎤 Aguardando "Ok Mera"...';
-
-
-    indicadorEstado.innerText =
-        "Mera ativa";
 
 
     iniciarReconhecimento();
