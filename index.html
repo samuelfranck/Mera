@@ -7,211 +7,141 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Mera - Teste de Microfone</title>
+    <title>Mera - Teste ASR</title>
 
     <style>
+
         body {
             font-family: Arial, sans-serif;
-            background: #f5f5f5;
             text-align: center;
             padding: 30px;
         }
 
-        .app {
-            max-width: 600px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-        }
-
         button {
-            font-size: 20px;
-            padding: 15px 25px;
-            margin: 10px;
-            border-radius: 10px;
-        }
-
-        #status {
-            font-size: 20px;
+            font-size: 22px;
+            padding: 15px 30px;
             margin: 20px;
         }
 
-        audio {
-            width: 100%;
+        #transcricao {
+            font-size: 24px;
+            padding: 20px;
             margin-top: 20px;
+            background: #eeeeee;
+            min-height: 50px;
         }
+
     </style>
 </head>
 
-
 <body>
-
-<div class="app">
 
     <h1>🎤 Mera</h1>
 
-    <h2>Teste do microfone</h2>
+    <h2>Teste ASR</h2>
 
-    <div id="status">
-        Pressione "Iniciar gravação".
+    <p id="status">
+        Pressione Falar.
+    </p>
+
+    <button id="falar">
+        🎤 Falar
+    </button>
+
+    <h3>Transcrição</h3>
+
+    <div id="transcricao">
+        ...
     </div>
-
-    <button id="iniciar">
-        🎤 Iniciar gravação
-    </button>
-
-    <button id="parar" disabled>
-        ⏹ Parar
-    </button>
-
-    <br>
-
-    <audio id="player"
-           controls>
-    </audio>
-
-</div>
 
 
 <script>
 
-let stream;
-let recorder;
-let partes = [];
+const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
 
 
 const status =
     document.getElementById("status");
 
-const iniciar =
-    document.getElementById("iniciar");
+const transcricao =
+    document.getElementById("transcricao");
 
-const parar =
-    document.getElementById("parar");
-
-const player =
-    document.getElementById("player");
+const botao =
+    document.getElementById("falar");
 
 
-// ======================================================
-// INICIAR GRAVAÇÃO
-// ======================================================
+if (!SpeechRecognition) {
 
-iniciar.onclick = async () => {
+    status.innerText =
+        "❌ SpeechRecognition não disponível.";
 
-    try {
+    botao.disabled = true;
 
-        status.innerText =
-            "Solicitando acesso ao microfone...";
+}
 
+else {
 
-        // Solicita diretamente o microfone
-        stream =
-            await navigator.mediaDevices.getUserMedia({
-                audio: true
-            });
+    const recognition =
+        new SpeechRecognition();
 
 
-        status.innerText =
-            "🎤 Gravando... fale alguma coisa.";
+    recognition.lang = "pt-BR";
+
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
 
 
-        partes = [];
-
-
-        recorder =
-            new MediaRecorder(stream);
-
-
-        recorder.ondataavailable = (event) => {
-
-            if (event.data.size > 0) {
-                partes.push(event.data);
-            }
-
-        };
-
-
-        recorder.onstop = () => {
-
-            const audioBlob =
-                new Blob(
-                    partes,
-                    {
-                        type: recorder.mimeType
-                    }
-                );
-
-
-            const audioURL =
-                URL.createObjectURL(audioBlob);
-
-
-            player.src =
-                audioURL;
-
-
-            status.innerText =
-                "✅ Gravação concluída. Reproduza o áudio abaixo.";
-
-        };
-
-
-        recorder.start();
-
-
-        iniciar.disabled = true;
-
-        parar.disabled = false;
-
-    }
-
-    catch (erro) {
-
-        console.error(erro);
+    recognition.onstart = () => {
 
         status.innerText =
-            "❌ Erro: " +
-            erro.name +
-            " - " +
-            erro.message;
+            "🎤 Ouvindo...";
 
-    }
+        transcricao.innerText = "";
 
-};
+        botao.disabled = true;
 
-
-// ======================================================
-// PARAR GRAVAÇÃO
-// ======================================================
-
-parar.onclick = () => {
-
-    if (
-        recorder &&
-        recorder.state !== "inactive"
-    ) {
-
-        recorder.stop();
-
-    }
+    };
 
 
-    if (stream) {
+    recognition.onresult = (event) => {
 
-        stream
-            .getTracks()
-            .forEach(track => track.stop());
+        const texto =
+            event.results[0][0].transcript;
 
-    }
+        transcricao.innerText =
+            texto;
+
+        status.innerText =
+            "✅ Reconhecimento concluído.";
+
+    };
 
 
-    iniciar.disabled = false;
+    recognition.onerror = (event) => {
 
-    parar.disabled = true;
+        status.innerText =
+            "❌ Erro: " + event.error;
 
-};
+    };
+
+
+    recognition.onend = () => {
+
+        botao.disabled = false;
+
+    };
+
+
+    botao.onclick = () => {
+
+        recognition.start();
+
+    };
+
+}
 
 </script>
 
